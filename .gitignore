@@ -1,0 +1,16 @@
+.DS_Store
+.env
+backend/.env
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+data/
+backend/temp_images/
+backend/rag_files/
+backend/coding_workspaces/
+*.log
+*.sqlite*
+postgres-data/
+redis-data/
