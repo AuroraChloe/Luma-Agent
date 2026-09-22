@@ -1,5 +1,7 @@
 <div align="center">
 
+**English** | [简体中文](README_CN.md)
+
 # ✦ Luma
 
 ### A self-hosted AI automation service for conversations, tools, media, and production workflows.
@@ -178,4 +180,3 @@ The request returns a `job_id`. Subscribe to `/v1/agent/runs/{job_id}/events` fo
 <div align="center">
   Built for teams that want an agent runtime they can inspect, extend, and run themselves. ✦
 </div>
-
