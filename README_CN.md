@@ -54,7 +54,7 @@ flowchart LR
 ### 1. 准备配置
 
 ```bash
-git clone https://github.com/<your-account>/Luma-Agent.git
+git clone https://github.com/AuroraChloe/Luma-Agent.git
 cd Luma-Agent
 
 cp .env.example .env
