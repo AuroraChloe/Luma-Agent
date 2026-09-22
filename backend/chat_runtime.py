@@ -518,13 +518,10 @@ class ChatRuntime:
 
             # Keep web Agent execution on the native LangChain path while it
             # is being validated. Do not hide defects with the legacy runner.
-            agent_result = await self.run_blocking(
-                "agent",
-                run_langchain_agent,
+            agent_result = await self.run_langchain_agent(
                 original_user_request,
                 messages=agent_messages,
                 model=model,
-                client_id=client_id,
                 agent_client_id=client_id,
                 chat_session_id=session_id,
                 trace_callback=trace_callback,
