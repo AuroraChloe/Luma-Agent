@@ -14,7 +14,7 @@ TTS_MAX_CHARS = int(os.getenv("DASHSCOPE_TTS_MAX_CHARS", "8000"))
 _MARKDOWN_IMAGE_RE = re.compile(r"!\[[^\]]*\]\([^)]*\)", re.IGNORECASE)
 _HTML_IMAGE_RE = re.compile(r"<img\b[^>]*>", re.IGNORECASE)
 _URL_RE = re.compile(r"(?:https?://|data:image/)[^\s<>\]\)]+", re.IGNORECASE)
-_LOCAL_IMAGE_RE = re.compile(r"(?:/opt/key_college/temp_images/|temp_images/)[^\s<>\]\)]+", re.IGNORECASE)
+_LOCAL_IMAGE_RE = re.compile(r"(?:/app/backend/data/media/|data/media/|temp_images/)[^\s<>\]\)]+", re.IGNORECASE)
 
 
 def text_for_tts(content) -> str:

@@ -29,7 +29,7 @@ def _valid_api_key(websocket: WebSocket) -> bool:
     The open-source core is intentionally stateless with respect to browser
     sessions. Deployments use their own gateway or API key layer instead.
     """
-    expected = os.getenv("CORE_API_KEY", "").strip()
+    expected = os.getenv("LUMA_API_KEY", "").strip()
     if not expected:
         return True
     authorization = websocket.headers.get("authorization", "")

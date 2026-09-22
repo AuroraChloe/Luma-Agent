@@ -22,7 +22,7 @@ from agent_llm import build_agent_llm
 
 
 CODING_WORKSPACE_ROOT = Path(
-    os.getenv("CODING_WORKSPACE_ROOT", "/opt/key_college/coding_workspaces")
+    os.getenv("CODING_WORKSPACE_ROOT", "./data/coding_workspaces")
 ).resolve()
 CODING_MAX_FILES = int(os.getenv("CODING_MAX_FILES", "1600"))
 CODING_MAX_FILE_BYTES = int(os.getenv("CODING_MAX_FILE_BYTES", str(2 * 1024 * 1024)))

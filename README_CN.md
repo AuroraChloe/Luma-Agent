@@ -131,23 +131,109 @@ X-Luma-Project-ID: my-project
 
 ## 🧩 按需配置能力
 
-Luma 的各项集成是独立的。基础对话只需配置聊天模型；其他能力需要时再填对应 Key 即可。
+Luma 的集成彼此独立。复制 `backend/.env.example` 后，只需填写某项能力所需字段即可启用；没有配置的能力不会影响正常聊天，只是不会被 Agent 选中执行。
 
-| 集成 | 主要配置 |
-| --- | --- |
-| 💬 Chat Agent | `LLM_BASE_URL`、`LLM_API_KEY`、`AGENT_MODEL` |
-| 👁️ Vision | `VISION_LLM_BASE_URL`、`VISION_LLM_API_KEY`、`VISION_LLM_MODEL` |
-| 🎨 图像 | `IMAGE_PROVIDER`、`IMAGE_BASE_URL`、`IMAGE_API_KEY`、`IMAGE_MODEL` |
-| 📚 RAG | Embedding 与文档处理模型配置 |
-| 🎙️ 语音 | `DASHSCOPE_API_KEY` |
-| 🔎 搜索 / 天气 | 对应服务的 Key 与 Endpoint |
-| 🔌 MCP | MCP 服务配置 |
-| 🎬 视频 | `VIDEO_GATEWAY_BASE_URL`、`VIDEO_GATEWAY_API_KEY` |
+| 能力 | 必填配置 | 如何启用 |
+| --- | --- | --- |
+| 💬 对话 + Agent | `LLM_BASE_URL`、`LLM_API_KEY`、`AGENT_MODEL` | 聊天模型配置可用后自动启用 |
+| 🧠 工具型 Agent | `LLM_SUPPORTS_TOOLS=true` | 本地工具和 MCP 服务域自动发现；仅在想让筛选器单独使用小模型时配置 `AGENT_TOOL_SELECTOR_MODEL` |
+| 👁️ Vision | `VISION_LLM_BASE_URL`、`VISION_LLM_MODEL`、`VISION_LLM_API_KEY` 或 `DASHSCOPE_API_KEY` | 请求确实需要看图时自动进入视觉链路 |
+| 🎨 图像 | `IMAGE_PROVIDER`、`IMAGE_BASE_URL`、`IMAGE_API_KEY`、`IMAGE_MODEL` | 配好兼容图像服务后，Agent 可按需调用生图/修图 |
+| 📚 RAG | `RAG_EMBEDDING_BASE_URL`、`RAG_EMBEDDING_MODEL`、`NVIDIA_API_KEY` 或 `LLM_API_KEY` | 通过 `/v1/rag/files` 导入文件；Compose 中已包含 pgvector |
+| 🎙️ ASR / TTS | `DASHSCOPE_API_KEY` | ASR 使用 `/v1/audio/asr`，TTS 使用 `/v1/audio/tts` |
+| 🔎 网页搜索 | `TAVILY_API_KEY` | 需要实时网页信息时，搜索工具会自动进入候选集合 |
+| 🌤️ 天气 | `WEATHER_API_KEY` | 用户请求地点天气时，天气工具会自动进入候选集合 |
+| 🔌 MCP | `MCP_*_ENABLED`、`MCP_*_URL`、`MCP_*_API_KEY` | 每个启用的 MCP 服务会被发现为独立工具域 |
+| 🎬 视频 | `VIDEO_GATEWAY_BASE_URL`、`VIDEO_GATEWAY_API_KEY` | 视频概念与分镜图准备完成后才会提交最终任务 |
 
-### 图片服务
+### Agent 配置
 
-- **OpenAI 兼容生图服务**：设置 `IMAGE_PROVIDER=openai_images`，并将 `IMAGE_BASE_URL` 指向兼容的图像 API。
-- **Qwen Image**：设置 `IMAGE_PROVIDER=qwen_image`，配置千问 compatible-mode Endpoint 与模型即可。
+```dotenv
+# Agent 工具循环的基础配置
+LLM_SUPPORTS_TOOLS=true
+AGENT_MAX_ITERATIONS=8
+AGENT_CONTEXT_MESSAGE_LIMIT=30
+AGENT_CONTEXT_TOKEN_BUDGET=6000
+
+# 可选：让候选工具筛选器使用更快/更便宜的小模型。
+# 留空时复用 AGENT_MODEL。
+AGENT_TOOL_SELECTOR_MODEL=
+AGENT_TOOL_SELECTOR_MAX_TOOLS=3
+```
+
+`AGENT_MAX_ITERATIONS` 限制单次请求中的“模型判断 → 工具调用 → 观察结果”循环次数。复杂工作流可适当调高，但建议始终保留上限，避免异常请求无限循环。工具选择本身是自动完成的，调用方不需要在请求中手工指定工具列表。
+
+### Vision 与生图
+
+```dotenv
+# 专用视觉模型；若 VISION_LLM_API_KEY 留空，会复用 DASHSCOPE_API_KEY。
+VISION_LLM_BASE_URL=https://your-provider.example/v1
+VISION_LLM_API_KEY=
+VISION_LLM_MODEL=your-vision-model
+
+# 图像服务二选一。
+IMAGE_PROVIDER=openai_images
+IMAGE_BASE_URL=https://your-image-provider.example/v1
+IMAGE_API_KEY=replace-with-image-provider-key
+IMAGE_MODEL=your-image-model
+```
+
+- **OpenAI 兼容图像服务**：当上游支持 `/images/generations` 与 multipart `/images/edits` 时，设置 `IMAGE_PROVIDER=openai_images`。
+- **Qwen Image**：设置 `IMAGE_PROVIDER=qwen_image`，将 `IMAGE_BASE_URL` 指向千问 compatible-mode，再设置 `IMAGE_MODEL=qwen-image-3.0`。
+- Vision 会接收上传或生成图片的公开本地媒体 URL，因此 `PUBLIC_MEDIA_BASE_URL` 必须是你的视觉模型上游能够访问到的地址。
+
+### RAG 与 Embedding
+
+```dotenv
+RAG_CHUNKER=router
+RAG_EMBEDDING_BASE_URL=https://your-embedding-provider.example/v1
+RAG_EMBEDDING_MODEL=your-embedding-model
+# 可选的独立 Embedding Key。留空时复用 LLM_API_KEY。
+NVIDIA_API_KEY=
+
+# 可选的独立语义切块 Endpoint；留空时复用 LLM_BASE_URL。
+RAG_SEMANTIC_CHUNK_BASE_URL=
+RAG_SEMANTIC_CHUNK_MODEL=your-chat-model
+```
+
+同一知识库应使用同一个稳定的 Embedding 模型。模型变更后需重新导入文档，因为旧向量属于原模型的向量空间。
+
+### 语音、搜索、天气与 MCP
+
+```dotenv
+# DashScope 的 ASR 与 TTS 共用同一个 Key
+DASHSCOPE_API_KEY=replace-with-dashscope-key
+DASHSCOPE_ASR_MODEL=fun-asr-realtime
+DASHSCOPE_TTS_MODEL=qwen-audio-3.0-tts-flash
+DASHSCOPE_TTS_VOICE=longanhuan_v3.6
+
+# 本地检索工具
+TAVILY_API_KEY=
+WEATHER_API_KEY=
+
+# 可选 MCP 服务示例
+MCP_MBTI_ENABLED=false
+MCP_MBTI_URL=
+MCP_MBTI_API_KEY=
+MCP_MCD_ENABLED=false
+MCP_MCD_URL=
+MCP_MCD_API_KEY=
+```
+
+MCP 服务不会被硬编码进主提示词。启用后，Luma 会在运行时读取该服务的官方 Tool Schema，将每台服务保留为一个工具域，再由 Agent 根据用户请求和对话上下文选择是否调用。
+
+### 视频生成
+
+```dotenv
+VIDEO_GATEWAY_BASE_URL=https://your-video-gateway.example/video-api
+VIDEO_GATEWAY_API_KEY=replace-with-video-gateway-key
+VIDEO_RESOLUTION=480p
+VIDEO_ASPECT_RATIO=16:9
+VIDEO_INSTANCE_TYPE=ultra
+VIDEO_POLL_TIMEOUT_SECONDS=900
+```
+
+视频是独立接入的可选能力。Agent 会先产出并确认紧凑的视频概念、角色/场景素材与多格分镜图，再基于已审查的分镜图和生产级提示词向视频网关提交**一个**最终任务。未配置网关 URL 与 Key 时，概念、素材和分镜流程仍可运行，但不能提交最终视频。
 
 ## 📡 发起一次 Agent 任务
 
@@ -180,4 +266,3 @@ curl -X POST http://localhost:8001/v1/agent/runs \
 <div align="center">
   为希望自行检查、扩展并运行 Agent Runtime 的团队而构建。✦
 </div>
-
