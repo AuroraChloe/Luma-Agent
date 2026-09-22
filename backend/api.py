@@ -1,4 +1,4 @@
-"""Service-key-protected HTTP transport for LumaNova Agent Core."""
+"""Service-key-protected HTTP transport for Luma."""
 
 import asyncio
 import base64
@@ -67,18 +67,18 @@ from token_utils import count_chat_tokens
 from video_generation_runtime import reconcile_video_generation
 
 
-app = FastAPI(title="LumaNova Agent Core", version="0.1.0")
+app = FastAPI(title="Luma", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[item.strip() for item in os.getenv("CORE_ALLOWED_ORIGINS", "*").split(",") if item.strip()],
+    allow_origins=[item.strip() for item in os.getenv("LUMA_ALLOWED_ORIGINS", "*").split(",") if item.strip()],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 DEFAULT_CHAT_MODEL = os.getenv("DEFAULT_CHAT_MODEL", "").strip()
-CORE_API_KEY = os.getenv("CORE_API_KEY", "").strip()
-CORE_CLIENT_ID = int(os.getenv("CORE_CLIENT_ID", "1"))
+LUMA_API_KEY = os.getenv("LUMA_API_KEY", "").strip()
+LUMA_CLIENT_ID = int(os.getenv("LUMA_CLIENT_ID", "1"))
 CONTEXT_MESSAGE_LIMIT = int(os.getenv("AGENT_CONTEXT_MESSAGE_LIMIT", "30"))
 CONTEXT_TOKEN_BUDGET = int(os.getenv("AGENT_CONTEXT_TOKEN_BUDGET", "6000"))
 RAG_DIR = Path(os.getenv("RAG_DIR", "./data/rag_files")).resolve()
@@ -140,17 +140,17 @@ def _bearer_token(request: Request) -> str:
 
 
 def _project_id(request: Request, requested: str | None = None) -> str:
-    value = (requested or request.headers.get("X-Agent-Project-ID") or "default").strip()
+    value = (requested or request.headers.get("X-Luma-Project-ID") or "default").strip()
     if not re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", value):
         raise HTTPException(status_code=400, detail="Invalid project_id")
     return value
 
 
 def require_context(request: Request, project_id: str | None = None) -> tuple[int, str]:
-    if not CORE_API_KEY or _bearer_token(request) != CORE_API_KEY:
+    if not LUMA_API_KEY or _bearer_token(request) != LUMA_API_KEY:
         raise HTTPException(status_code=401, detail="Invalid service API key")
-    client_id = CORE_CLIENT_ID
-    ensure_core_client(client_id, label=os.getenv("CORE_CLIENT_LABEL", "default-client"))
+    client_id = LUMA_CLIENT_ID
+    ensure_core_client(client_id, label=os.getenv("LUMA_CLIENT_LABEL", "default-client"))
     resolved_project = _project_id(request, project_id)
     ensure_core_project(client_id, resolved_project)
     return client_id, resolved_project

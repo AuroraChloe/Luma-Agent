@@ -23,8 +23,8 @@ import redis.asyncio as redis
 
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-QUEUE_KEY = "lumanova:demo:jobs"
-JOB_KEY_PREFIX = "lumanova:demo:job:"
+QUEUE_KEY = "luma:demo:jobs"
+JOB_KEY_PREFIX = "luma:demo:job:"
 JOB_TTL_SECONDS = 15 * 60
 
 

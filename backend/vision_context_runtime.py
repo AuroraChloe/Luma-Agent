@@ -111,7 +111,7 @@ def run_vision_context(*, user_message: str, image_ref: str, context: str = "") 
         return {"content": "", "usage": {}, "error": "IMAGE_NOT_AVAILABLE"}
 
     system_prompt = (
-        "你是 LumaNova 的视觉事实提取器，服务于另一个主聊天 Agent。"
+        "你是 Luma 的视觉事实提取器，服务于另一个主聊天 Agent。"
         "你只读取图片本身并提取完成当前请求所需的可见事实，不要直接回答用户，"
         "不要选择工具，不要编写工具参数，不要输出 Markdown 或 JSON。"
         "请说明图片中的主体、可读文字、场景、关键属性，以及与用户问题相关的事实。"

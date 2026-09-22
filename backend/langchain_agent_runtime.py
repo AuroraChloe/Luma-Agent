@@ -256,7 +256,7 @@ class HistoryAwareToolSelectorMiddleware(AgentMiddleware):
         valid_candidate_ids = list(candidates)
         catalog = "\n".join(catalog_rows)
         prompt = (
-            "你是 LumaNova 的工具候选筛选器，不执行工具，也不回答用户问题。"
+            "你是 Luma 的工具候选筛选器，不执行工具，也不回答用户问题。"
             f"请根据完整会话上下文，选出完成当前用户任务可能需要的最多 {self.max_tools} 个候选能力。"
             "候选能力可能是单个本地工具，也可能是一个完整 MCP 服务域。"
             "当用户任务属于某个 MCP 服务覆盖的业务域时，即使当前还缺少后续工具参数，"
@@ -275,7 +275,7 @@ class HistoryAwareToolSelectorMiddleware(AgentMiddleware):
             f"完整会话上下文：\n{self._history_text(request.messages)}"
         )
         schema = {
-            "title": "LumaNovaToolSelection",
+            "title": "LumaToolSelection",
             "type": "object",
             "properties": {
                 "tools": {
@@ -704,7 +704,7 @@ def _agent_system_prompt(skill_text, catalog, context, current_request):
     skill_section = f"\n\n领域 Skill 规则：\n{skill_text}" if skill_text else ""
     catalog_section = json.dumps(catalog, ensure_ascii=False) if catalog else "[]"
     return (
-        "你是 LumaNova 的主聊天 Agent，负责自然、准确地完成用户当前请求。"
+        "你是 Luma 的主聊天 Agent，负责自然、准确地完成用户当前请求。"
         "模型自身能够可靠完成的问题直接回答；只有任务确实需要外部事实、用户私有数据或实际操作时才使用工具。"
         "本轮工具的能力、参数和适用边界只以系统实际提供的 Tool Schema 与领域 Skill 为准；"
         "没有提供的能力不要假设、编造或声称可用，也不要因为历史中曾使用过某个工具就机械重复调用。"
@@ -935,7 +935,7 @@ async def run_langchain_agent(
             context,
             current_request,
         ),
-        name="lumanova_agent",
+        name="luma_agent",
     )
 
     trace = []

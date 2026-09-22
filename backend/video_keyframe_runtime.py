@@ -216,7 +216,7 @@ def _director_decision(
 ) -> tuple[VideoKeyframeDecision, dict]:
     concept = _concept(project)
     system_prompt = (
-        "你是 LumaNova 视频生成流水线的关键帧导演。"
+        "你是 Luma 视频生成流水线的关键帧导演。"
         "当前输入中的 confirmed_script 是已经由用户确认的只读脚本事实，绝对不能改写剧情、替换事件、改变结局或添加新事件。"
         "你的任务是为每个脚本节拍规划一个分镜格；运行时会把所有分镜格一次性生成到一张连续的分镜图合集，而不是分别生成独立图片。"
         "每格只补充镜头景别、机位、构图、动作瞬间、环境状态、光线与上一格、下一格的连续性要求。"

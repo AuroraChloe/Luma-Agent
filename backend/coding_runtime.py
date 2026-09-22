@@ -109,7 +109,7 @@ async def save_coding_workspace(client_id: int, files, relative_paths=None) -> d
 
         if not accepted:
             raise ValueError("no readable source files were uploaded")
-        (workspace / ".lumanova_workspace.json").write_text(
+        (workspace / ".luma_workspace.json").write_text(
             json.dumps({"workspace_id": workspace_id, "files": accepted}, ensure_ascii=False),
             encoding="utf-8",
         )
@@ -149,7 +149,7 @@ def _iter_source_files(root: Path):
         if not path.is_file():
             continue
         relative = path.relative_to(root).as_posix()
-        if relative == ".lumanova_workspace.json" or _is_ignored_path(relative):
+        if relative == ".luma_workspace.json" or _is_ignored_path(relative):
             continue
         yield path, relative
 
@@ -325,7 +325,7 @@ def run_coding_analysis(
             history.append(f"{item['role']}: {str(content)[-1200:]}")
 
     system_prompt = (
-        "你是 LumaNova 的只读 Coding Agent。你的任务是理解用户上传的代码项目并给出工程分析。\n"
+        "你是 Luma 的只读 Coding Agent。你的任务是理解用户上传的代码项目并给出工程分析。\n"
         "你只能使用 list_project_files、read_project_file、search_project_code 三个工具。\n"
         "禁止修改、创建、删除文件，禁止执行 shell，禁止假设没有读到的代码。\n"
         "先建立项目结构，再根据用户问题搜索并读取关键文件；必要时多次调用读取工具。\n"
@@ -338,7 +338,7 @@ def run_coding_analysis(
         model=llm,
         tools=tools,
         system_prompt=system_prompt,
-        name="lumanova_coding_readonly_agent",
+        name="luma_coding_readonly_agent",
     )
     trace = []
     usage = {}

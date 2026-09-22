@@ -9,16 +9,16 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "${CORE_PORT:-8001}:8001"
+      - "${LUMA_PORT:-8001}:8001"
     volumes:
       - ./data:/app/backend/data
 
   postgres:
     image: pgvector/pgvector:pg16
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-lumanova_agent}
-      POSTGRES_USER: ${POSTGRES_USER:-lumanova}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lumanova-local-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-luma_agent}
+      POSTGRES_USER: ${POSTGRES_USER:-luma}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-luma-local-change-me}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:

@@ -10,8 +10,8 @@ import requests
 from fastapi import HTTPException
 
 
-UPLOAD_DIR = os.path.abspath(os.getenv("UPLOAD_DIR", "./temp_images"))
-PUBLIC_API_BASE = os.getenv("PUBLIC_API_BASE", "https://api.lumanova.icu").rstrip("/")
+UPLOAD_DIR = os.path.abspath(os.getenv("UPLOAD_DIR", "./data/media"))
+PUBLIC_API_BASE = os.getenv("PUBLIC_API_BASE", "http://localhost:8001").rstrip("/")
 PUBLIC_IMAGE_BASE_URL = os.getenv("PUBLIC_IMAGE_BASE_URL", PUBLIC_API_BASE).rstrip("/")
 MEDIA_S3_BUCKET = os.getenv("MEDIA_S3_BUCKET", "").strip()
 MEDIA_S3_PREFIX = os.getenv("MEDIA_S3_PREFIX", "temp_file").strip().strip("/")

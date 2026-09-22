@@ -115,7 +115,7 @@ def _scene_catalog(scenes: list[dict]) -> list[dict]:
 def _decide(*, model: str, current_request: str, messages: list[dict], project: dict, scenes: list[dict]):
     concept = _concept(project)
     prompt = (
-        "你是 LumaNova 视频生成流水线的场景美术导演。当前只负责为已确认概念创建可复用的场景参考图。"
+        "你是 Luma 视频生成流水线的场景美术导演。当前只负责为已确认概念创建可复用的场景参考图。"
         "先根据完整概念脚本识别实际需要的地点或环境状态；同一连续地点只建一张场景基准图，环境发生关键变化时才拆成新场景。"
         "场景图必须是无人、无角色、无文字、无分格的横向环境基准图，供后续分镜图编辑时锁定空间、光线、道具和氛围。"
         "不要执行人物设计、分镜图、视频生成或逐镜头提示词。"

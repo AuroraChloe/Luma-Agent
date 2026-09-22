@@ -1,4 +1,4 @@
-"""Durable storage for the standalone agent core.
+"""Durable storage for Luma projects and agent runs.
 
 `client_id` identifies the caller/service principal. `project_id` groups that
 client's sessions, assets and knowledge. This module has no browser-user,
@@ -16,8 +16,8 @@ import psycopg2
 
 DB_HOST = os.getenv("POSTGRES_HOST", "postgres")
 DB_PORT = int(os.getenv("POSTGRES_PORT", "5432"))
-DB_NAME = os.getenv("POSTGRES_DB", "lumanova_agent")
-DB_USER = os.getenv("POSTGRES_USER", "lumanova")
+DB_NAME = os.getenv("POSTGRES_DB", "luma_agent")
+DB_USER = os.getenv("POSTGRES_USER", "luma")
 DB_PASS = os.getenv("POSTGRES_PASSWORD", "")
 DEFAULT_PROJECT_ID = "default"
 
@@ -96,7 +96,7 @@ def ensure_core_project(client_id, project_id=DEFAULT_PROJECT_ID, name=None):
 
 
 def ensure_usage_schema():
-    """Create only Agent Core state; this name stays for runtime compatibility."""
+    """Create the tables used by Luma projects and agent runs."""
     conn = get_conn()
     cur = conn.cursor()
     try:

@@ -24,8 +24,8 @@ from redis.exceptions import ResponseError
 JobHandler = Callable[[str, int, dict[str, Any]], Awaitable[None]]
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0").strip()
-STREAM_KEY = os.getenv("REDIS_JOB_STREAM", "lumanova:jobs").strip()
-CONSUMER_GROUP = os.getenv("REDIS_JOB_GROUP", "lumanova-workers").strip()
+STREAM_KEY = os.getenv("REDIS_JOB_STREAM", "luma:jobs").strip()
+CONSUMER_GROUP = os.getenv("REDIS_JOB_GROUP", "luma-workers").strip()
 STATE_TTL_SECONDS = max(int(os.getenv("REDIS_JOB_STATE_TTL_SECONDS", "3600")), 300)
 ACTIVE_TTL_SECONDS = max(int(os.getenv("REDIS_SESSION_ACTIVE_TTL_SECONDS", "21600")), 600)
 CANCEL_TTL_SECONDS = max(int(os.getenv("REDIS_JOB_CANCEL_TTL_SECONDS", "3600")), 300)
@@ -33,16 +33,16 @@ CLAIM_IDLE_MS = max(int(os.getenv("REDIS_JOB_CLAIM_IDLE_MS", "30000")), 10000)
 HEARTBEAT_SECONDS = max(float(os.getenv("REDIS_JOB_HEARTBEAT_SECONDS", "10")), 2.0)
 WORKER_CONCURRENCY = max(int(os.getenv("REDIS_JOB_WORKER_CONCURRENCY", "2")), 1)
 STREAM_MAXLEN = max(int(os.getenv("REDIS_JOB_STREAM_MAXLEN", "10000")), 1000)
-CANCEL_CHANNEL = "lumanova:jobs:cancel"
-EVENT_CHANNEL_PREFIX = "lumanova:job:events:"
+CANCEL_CHANNEL = "luma:jobs:cancel"
+EVENT_CHANNEL_PREFIX = "luma:job:events:"
 EVENT_HEARTBEAT_SECONDS = max(
     float(os.getenv("REDIS_JOB_EVENT_HEARTBEAT_SECONDS", "15")),
     5.0,
 )
 
-STATE_PREFIX = "lumanova:job:state:"
-ACTIVE_PREFIX = "lumanova:session:active:"
-CANCEL_PREFIX = "lumanova:job:cancel:"
+STATE_PREFIX = "luma:job:state:"
+ACTIVE_PREFIX = "luma:session:active:"
+CANCEL_PREFIX = "luma:job:cancel:"
 TERMINAL_STATUSES = {"completed", "failed", "canceled"}
 
 

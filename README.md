@@ -1,156 +1,181 @@
-# LumaNova Agent Core
+<div align="center">
 
-LumaNova Agent Core is the backend-only extraction of the LumaNova agent
-runtime. It deliberately excludes the product website, browser cookies,
-accounts, passwords, SMS, payment, membership, API-key issuance, and CDN/S3
-deployment wiring.
+# ✦ Luma
 
-## Included capabilities
+### A self-hosted AI automation service for conversations, tools, media, and production workflows.
 
-- LangChain/LangGraph-style agent loop with dynamic tool selection
-- OpenAI-compatible chat and tool calling providers
-- Vision context and image asset selection
-- Image generation and editing
-- Video concept, subject, scene, storyboard, quality review, and one-shot
-  storyboard-to-video workflow
-- RAG ingestion/retrieval, read-only coding analysis, web search, weather,
-  MCP tools, and DashScope ASR/TTS
-- PostgreSQL durable state and Redis jobs/events/cancellation
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](#-quick-start)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](#-architecture)
+[![LangChain](https://img.shields.io/badge/LangChain-Agent%20Runtime-1C3C3C)](#-agent-runtime)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?logo=postgresql&logoColor=white)](#-architecture)
+[![Redis](https://img.shields.io/badge/Redis-Jobs%20%26%20SSE-DC382D?logo=redis&logoColor=white)](#-architecture)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](#-quick-start)
 
-## Media and providers
+</div>
 
-This repository stores generated and uploaded assets locally under
-`./data/media`. It does not contain S3, CloudFront, user account pools, or
-production credentials.
+> **Luma** turns a natural-language request into an observable, tool-driven workflow. It supports ordinary chat, structured tool calling, vision-aware conversations, image creation, RAG, codebase analysis, MCP services, speech, and storyboard-guided short-video production.
 
-Set provider credentials in `backend/.env` from `backend/.env.example`:
+## ✨ What Luma Can Do
 
-- Any OpenAI-compatible LLM: `LLM_BASE_URL`, `LLM_API_KEY`, `AGENT_MODEL`
-- Vision: `VISION_LLM_BASE_URL`, `VISION_LLM_API_KEY`, `VISION_LLM_MODEL`
-- Images: set `IMAGE_PROVIDER=openai_images` for an OpenAI image endpoint or
-  ChatGPT2API; set `IMAGE_PROVIDER=qwen_image` for Qwen Image 3.
-- ASR/TTS: `DASHSCOPE_API_KEY`
-- Search/weather/MCP/video: enable only the corresponding keys and URLs.
+| | Capability | What it handles |
+| :--: | --- | --- |
+| 🧠 | **Agent runtime** | Dynamic tool selection, multi-step execution, context-aware follow-ups, and safe final responses |
+| 🔎 | **Research & MCP** | Web search, weather, remote MCP services, and business workflows exposed as tools |
+| 👁️ | **Vision & images** | Image understanding, asset selection, image generation, and image editing |
+| 🎬 | **Video workflow** | Concept planning, subject and scene references, multi-panel storyboards, visual review, and storyboard-guided video generation |
+| 📚 | **RAG** | Document ingestion, semantic chunking, vector retrieval, focused knowledge-base answers |
+| 💻 | **Coding analysis** | Upload a codebase for read-only structure, flow, risk, and implementation analysis |
+| 🎙️ | **Speech** | Real-time ASR over WebSocket and TTS for final text responses |
 
-`basketikun/chatgpt2api` can be deployed separately as an optional image
-provider. Point `IMAGE_BASE_URL` at its `/v1` endpoint. It is not bundled
-here, and deployments must comply with the upstream project and provider
-terms. Qwen Image needs no ChatGPT2API installation: configure its compatible
-mode Base URL, DashScope key, and `qwen-image-3.0` model instead.
+## 🗺️ Architecture
 
-The video gateway is intentionally opt-in. Set `VIDEO_GATEWAY_BASE_URL` and a
-gateway key only after you have separately obtained access from that provider.
+```mermaid
+flowchart LR
+    Client[Client / App] -->|Bearer key| API[FastAPI service]
+    API --> Runtime[Luma Agent Runtime]
+    API --> Queue[Redis jobs + SSE]
+    API --> DB[(PostgreSQL + pgvector)]
+    API --> Media[Local media storage]
 
-## Extraction status
+    Runtime --> LLM[OpenAI-compatible LLM]
+    Runtime --> Tools[Local tools + MCP]
+    Runtime --> Vision[Vision provider]
+    Runtime --> Image[Image provider]
+    Runtime --> Video[Video gateway]
+    Runtime --> Speech[ASR / TTS provider]
+```
 
-The runtime, skills, tools, image-provider adapter, and local-media defaults
-are extracted. `backend/sql.py` uses an independent Core Schema:
-`core_clients` identifies a caller/service principal, and `core_projects`
-groups that caller's sessions and RAG collections. Chat, assets, jobs, video
-state and RAG rows use `client_id`; sessions and collections additionally
-carry `project_id` (defaulting to `default`). There are no historical user,
-password, session-cookie, payment, membership, or phone tables.
+**Durable state** lives in PostgreSQL. **Live execution**, cancellation, and server-sent events live in Redis. Media stays local under `./data/media`, so the project can run without S3 or a CDN.
 
-## Development setup
+## 🚀 Quick Start
+
+### 1. Prepare configuration
 
 ```bash
+git clone https://github.com/<your-account>/Luma-Agent.git
+cd Luma-Agent
+
 cp .env.example .env
 cp backend/.env.example backend/.env
 ```
 
-Set the same `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` values in
-both files. Then fill the provider settings and a long random `CORE_API_KEY` in
-`backend/.env`.
+Set matching database values in both files, then add at least these settings to `backend/.env`:
+
+```dotenv
+LUMA_API_KEY=replace-with-a-long-random-service-key
+LLM_BASE_URL=https://your-provider.example/v1
+LLM_API_KEY=replace-with-your-provider-key
+AGENT_MODEL=your-agent-model
+```
+
+### 2. Start the stack
 
 ```bash
 docker compose up --build -d
 curl http://localhost:8001/healthz
 ```
 
-`docker compose logs -f api` shows startup, agent, RAG, and video reconciliation
-logs. PostgreSQL and Redis are private to the Compose network; do not add host
-port mappings unless an operational need requires them.
+Expected response:
 
-Set `CORE_PORT` in the root `.env` when port `8001` is already used. If you do,
-also set `PUBLIC_API_BASE`, `PUBLIC_IMAGE_BASE_URL`, and `PUBLIC_MEDIA_BASE_URL`
-in `backend/.env` to the externally reachable address.
-
-## Authentication and tenancy
-
-Every non-health endpoint requires:
-
-```http
-Authorization: Bearer <CORE_API_KEY>
-X-Agent-Project-ID: my-project     # optional; defaults to `default`
+```json
+{"status":"ok"}
 ```
 
-`CORE_API_KEY` authenticates one self-hosted deployment. `X-Agent-Project-ID`
-isolates that deployment's sessions, RAG collections, coding workspaces, and
-video work within the durable Core Schema. It is deliberately not a browser
-Cookie system or a user billing system.
+### 3. Create a conversation
 
-## HTTP and WebSocket API
+```bash
+curl -X POST http://localhost:8001/v1/sessions \
+  -H "Authorization: Bearer $LUMA_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"project_id":"demo","title":"My first Luma session"}'
+```
 
-The core has a complete service API rather than a website-specific facade:
+> 💡 Port `8001` already occupied? Set `LUMA_PORT` in the root `.env`. When using a reverse proxy, update `PUBLIC_API_BASE`, `PUBLIC_IMAGE_BASE_URL`, and `PUBLIC_MEDIA_BASE_URL` in `backend/.env` too.
+
+## 🧠 Agent Runtime
+
+Luma does not hard-code a fixed tool sequence. For every request it:
+
+1. **Builds context** from the active conversation, relevant visual assets, project state, and optional Skill guidance.
+2. **Selects candidates** with a lightweight tool selector that reads recent history, not only the last user message.
+3. **Runs the agent loop** with the selected local tools and/or an MCP service domain.
+4. **Feeds tool observations back** to the model until it has enough information to answer or complete the workflow.
+5. **Persists outcomes** to PostgreSQL and streams live job state over Redis-backed SSE.
+
+This keeps ordinary Q&A lightweight while allowing multi-tool work such as **research → infographic**, **storyboard → video**, or **image → vision → edit**.
+
+## 🔌 API Surface
 
 | Area | Endpoints |
 | --- | --- |
-| Health | `GET /healthz` |
-| OpenAI-compatible proxy | `POST /v1/chat/completions`, `POST /v1/responses`, `GET /v1/models`; upstream SSE is passed through unchanged |
-| Agent runs | `POST /v1/agent/runs`, `GET /v1/agent/runs/{id}`, `GET /v1/agent/runs/{id}/events`, `POST /v1/agent/runs/{id}/cancel` |
-| Session and history | `POST/GET /v1/sessions`, `PATCH/DELETE /v1/sessions/{id}`, `GET /v1/sessions/{id}/messages`, `GET /v1/sessions/{id}/job`, `POST /v1/sessions/{id}/messages/{message_id}/regenerate` |
-| Compatibility aliases | `GET /v1/chat/jobs/{id}`, `GET /v1/chat/jobs/{id}/events`, `POST /v1/chat/jobs/{id}/cancel` |
-| Assets and media | `POST /v1/assets`, `GET /temp_file/{file_name}`, `POST /v1/images/generations`, `POST /v1/images/edits` |
-| RAG | `POST /v1/rag/files`, collection/document reads, job reads/SSE, `POST /v1/rag/search` |
-| Coding | `POST /v1/coding/workspaces` |
-| Audio | `WS /v1/audio/asr`, `POST /v1/audio/tts` |
-| Video | `GET /v1/sessions/{id}/video-generation`; the Agent owns the video planning and submission workflow |
+| ❤️ Health | `GET /healthz` |
+| 💬 OpenAI compatibility | `POST /v1/chat/completions`, `POST /v1/responses`, `GET /v1/models` |
+| ⚡ Agent runs | `POST /v1/agent/runs`, run state, SSE events, cancellation |
+| 🗂️ Sessions | Create, list, update, delete, message history, regeneration, and latest job state under `/v1/sessions` |
+| 🖼️ Assets | `POST /v1/assets`, `POST /v1/images/generations`, `POST /v1/images/edits`, `GET /temp_file/{name}` |
+| 📚 RAG | File upload, collections, document state, job SSE, `POST /v1/rag/search` |
+| 💻 Coding | `POST /v1/coding/workspaces` |
+| 🎙️ Audio | `WS /v1/audio/asr`, `POST /v1/audio/tts` |
+| 🎬 Video | `GET /v1/sessions/{id}/video-generation` |
 
-Agent and RAG executions are accepted with `202`, retained in PostgreSQL, and
-published through Redis-backed SSE. A client should consume the `events`
-endpoint rather than polling repeatedly. Completed video gateway work is
-reconciled in the background and its local media URL is written back to the
-project's chat history.
+All endpoints except `/healthz` use:
 
-### Agent run example
+```http
+Authorization: Bearer <LUMA_API_KEY>
+X-Luma-Project-ID: my-project
+```
+
+`X-Luma-Project-ID` is optional and defaults to `default`. It isolates sessions, RAG collections, assets, code workspaces, and video projects inside one deployment.
+
+## 🧩 Configure Only What You Need
+
+Luma's integrations are independent. The chat provider is enough for a basic agent; add other keys only when you enable their capability.
+
+| Integration | Primary settings |
+| --- | --- |
+| 💬 Chat Agent | `LLM_BASE_URL`, `LLM_API_KEY`, `AGENT_MODEL` |
+| 👁️ Vision | `VISION_LLM_BASE_URL`, `VISION_LLM_API_KEY`, `VISION_LLM_MODEL` |
+| 🎨 Images | `IMAGE_PROVIDER`, `IMAGE_BASE_URL`, `IMAGE_API_KEY`, `IMAGE_MODEL` |
+| 📚 RAG | Embedding and document-processing provider settings |
+| 🎙️ Speech | `DASHSCOPE_API_KEY` |
+| 🔎 Search / Weather | Corresponding provider key and endpoint |
+| 🔌 MCP | MCP server configuration |
+| 🎬 Video | `VIDEO_GATEWAY_BASE_URL`, `VIDEO_GATEWAY_API_KEY` |
+
+### Image providers
+
+- **OpenAI-compatible**: set `IMAGE_PROVIDER=openai_images` and point `IMAGE_BASE_URL` to a compatible image endpoint.
+- **Qwen Image**: set `IMAGE_PROVIDER=qwen_image` with a Qwen compatible-mode endpoint and model.
+
+## 📡 Agent Run Example
 
 ```bash
 curl -X POST http://localhost:8001/v1/agent/runs \
-  -H "Authorization: Bearer $CORE_API_KEY" \
+  -H "Authorization: Bearer $LUMA_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{
     "project_id": "demo",
     "session_id": "sess_replace_me",
     "model": "your-agent-model",
-    "messages": [{"role":"user","content":"Search this week’s AI news and create an infographic."}]
+    "messages": [
+      {"role":"user","content":"Search this week’s AI news and create an infographic."}
+    ]
   }'
 ```
 
-Create the session first with `POST /v1/sessions`. The returned `job_id` can be
-subscribed to at `/v1/agent/runs/{job_id}/events`.
+The request returns a `job_id`. Subscribe to `/v1/agent/runs/{job_id}/events` for live progress instead of polling repeatedly.
 
-## Provider configuration
+## 🛡️ Deployment Notes
 
-Only configure the capabilities you intend to use. Core chat needs an
-OpenAI-compatible `LLM_BASE_URL`, `LLM_API_KEY`, and `AGENT_MODEL`. Vision,
-images, RAG embeddings, ASR/TTS, search/weather, MCP, and video each have
-separate optional configuration in `backend/.env.example`.
+- 🔐 Never commit `.env`, local media, coding workspaces, or database dumps.
+- 🧱 PostgreSQL and Redis remain private to the Compose network by default.
+- 🌐 Put TLS and cache headers in a reverse proxy before exposing the API publicly.
+- 💾 Mount `./data` on durable local storage before long-running RAG or media workloads.
+- 🧪 `docker compose logs -f api` shows Agent, RAG, and video reconciliation activity.
 
-For images, choose one mode:
+---
 
-- `IMAGE_PROVIDER=openai_images`: any endpoint implementing OpenAI image
-  generation plus edits. This can point at a separately deployed compatible
-  service such as `basketikun/chatgpt2api`.
-- `IMAGE_PROVIDER=qwen_image`: Qwen Image compatible-mode endpoint using only
-  its own base URL, API key, and model. No ChatGPT2API installation is needed.
+<div align="center">
+  Built for teams that want an agent runtime they can inspect, extend, and run themselves. ✦
+</div>
 
-All uploads and generated media are cached under `./data/media`; the API serves
-them from `/temp_file/`. In a production deployment, mount `./data` on durable
-local storage and put TLS/reverse-proxy caching in front of the API.
-
-## Repository hygiene
-
-- Never commit `backend/.env`, local media, workspaces, or database dumps.
-- Generate a unique `CORE_API_KEY` for each deployment.
-- Prefer a reverse proxy for TLS and for serving `/temp_file/` from
-  `./data/media`.
