@@ -132,31 +132,33 @@ Luma 不会把工具调用写死成固定流程。每次请求都会经过以下
 | 🎙️ 语音 | `WS /v1/audio/asr`、`POST /v1/audio/tts` |
 | 🎬 视频 | `GET /v1/sessions/{id}/video-generation` |
 
-除 `/healthz` 外，接口都需要服务密钥：
+受保护的 HTTP 接口使用部署方自行生成的 `LUMA_API_KEY`，不是模型供应商的 Key：
 
 ```http
 Authorization: Bearer <LUMA_API_KEY>
 X-Luma-Project-ID: my-project
 ```
 
-`X-Luma-Project-ID` 可选，默认值为 `default`。它可在同一个部署内隔离会话、知识库、媒体资产、代码工作区和视频项目。
+`X-Luma-Project-ID` 可选，默认 `default`，用于选择项目上下文，不是访问凭据。
+
+`GET /healthz` 与 `GET /temp_file/{name}` 不检查服务 Key；不要直接公开私有媒体路由。ASR WebSocket 在设置 `LUMA_API_KEY` 时接受 Bearer 头或 `api_key` 查询参数，优先使用请求头；服务 Key 留空会跳过 ASR 的服务鉴权。
 
 ## 🧩 按需配置能力
 
-Luma 的集成彼此独立。复制 `backend/.env.example` 后，只需填写某项能力所需字段即可启用；没有配置的能力不会影响正常聊天，只是不会被 Agent 选中执行。
+凭据填在 `backend/.env`。基础对话只需要自己生成的 `LUMA_API_KEY` 和模型供应商的 `LLM_API_KEY`，再填对应的 URL 和模型名。其余能力按需配置。
 
-| 能力 | 必填配置 | 如何启用 |
+| 能力 | 供应商与替换方式 | 配置项 |
 | --- | --- | --- |
-| 💬 对话 + Agent | `LLM_BASE_URL`、`LLM_API_KEY`、`AGENT_MODEL` | 聊天模型配置可用后自动启用 |
-| 🧠 工具型 Agent | `LLM_SUPPORTS_TOOLS=true` | 本地工具和 MCP 服务域自动发现；仅在想让筛选器单独使用小模型时配置 `AGENT_TOOL_SELECTOR_MODEL` |
-| 👁️ Vision | `VISION_LLM_BASE_URL`、`VISION_LLM_MODEL`、`VISION_LLM_API_KEY` 或 `DASHSCOPE_API_KEY` | 请求确实需要看图时自动进入视觉链路 |
-| 🎨 图像 | `IMAGE_PROVIDER`、`IMAGE_BASE_URL`、`IMAGE_API_KEY`、`IMAGE_MODEL` | 配好兼容图像服务后，Agent 可按需调用生图/修图 |
-| 📚 RAG | `RAG_EMBEDDING_BASE_URL`、`RAG_EMBEDDING_MODEL`、`NVIDIA_API_KEY` 或 `LLM_API_KEY` | 通过 `/v1/rag/files` 导入文件；Compose 中已包含 pgvector |
-| 🎙️ ASR / TTS | `DASHSCOPE_API_KEY` | ASR 使用 `/v1/audio/asr`，TTS 使用 `/v1/audio/tts` |
-| 🔎 网页搜索 | `TAVILY_API_KEY` | 需要实时网页信息时，搜索工具会自动进入候选集合 |
-| 🌤️ 天气 | `WEATHER_API_KEY` | 用户请求地点天气时，天气工具会自动进入候选集合 |
-| 🔌 MCP | `MCP_*_ENABLED`、`MCP_*_URL`、`MCP_*_API_KEY` | 每个启用的 MCP 服务会被发现为独立工具域 |
-| 🎬 视频 | `VIDEO_GATEWAY_BASE_URL`、`VIDEO_GATEWAY_API_KEY` | 视频概念与分镜图准备完成后才会提交最终任务 |
+| 服务鉴权 | 自己生成随机密钥，供客户端调用 Luma；不用向任何厂商申请 | `LUMA_API_KEY` |
+| 对话 / Agent | **可换**：例如 [DeepSeek](https://api-docs.deepseek.com/guides/tool_calls/)、OpenAI 或 [阿里云百炼](https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions)。普通对话需要 Chat Completions，Agent 还需要工具调用；使用 Responses 代理时，上游也须支持 Responses | `LLM_BASE_URL`、`LLM_API_KEY`、`DEFAULT_MODEL`、`AGENT_MODEL` |
+| 视觉理解 | **阿里云百炼千问**，例如 `qwen3-vl-plus`。可以和语音共用 DashScope Key；需要单独授权时使用 `VISION_LLM_API_KEY` | `VISION_LLM_BASE_URL`、`VISION_LLM_MODEL`、`DASHSCOPE_API_KEY` 或 `VISION_LLM_API_KEY` |
+| ASR / TTS | **阿里云 DashScope**。两项可共用一把 Key；更换厂商需要新适配器 | `DASHSCOPE_API_KEY` |
+| 生图 / 修图 | **可换**：例如 [OpenAI Images](https://developers.openai.com/api/docs/guides/image-generation)、阿里云百炼 Qwen Image，或兼容 OpenAI Images 的自建网关。修图须支持对应适配器的图片输入格式 | `IMAGE_PROVIDER`、`IMAGE_BASE_URL`、`IMAGE_API_KEY`、`IMAGE_MODEL` |
+| RAG 向量化 | **可换兼容端点**：例如 NVIDIA 托管服务、自建 NVIDIA NIM。换 OpenAI Embeddings 等厂商前需确认请求字段兼容，或使用适配网关；见下文 | `RAG_EMBEDDING_BASE_URL`、`RAG_EMBEDDING_MODEL`、`NVIDIA_API_KEY` 或 `LLM_API_KEY` |
+| 网页搜索 | **Tavily**，其他搜索厂商不能只换 Key | `TAVILY_API_KEY` |
+| 天气 | **高德地图开放平台**，申请 Web 服务 Key | `WEATHER_API_KEY` |
+| MCP | **各 MCP 服务签发**：MBTI 和 MCD 分别配置。其他服务若不兼容现有接入和鉴权方式，需要新适配器 | `MCP_MBTI_API_KEY`、`MCP_MCD_API_KEY`，以及对应的 `*_URL` 和 `*_ENABLED=true` |
+| 视频渲染 | **Luma 视频网关**，使用网关签发的 Key，不是 `LUMA_API_KEY`。可以换成兼容的自建网关，须支持同样的提交、轮询接口和 `X-API-Key` 鉴权 | `VIDEO_GATEWAY_BASE_URL`、`VIDEO_GATEWAY_API_KEY` |
 
 ### Agent 配置
 
@@ -178,10 +180,11 @@ AGENT_TOOL_SELECTOR_MAX_TOOLS=3
 ### Vision 与生图
 
 ```dotenv
-# 专用视觉模型；若 VISION_LLM_API_KEY 留空，会复用 DASHSCOPE_API_KEY。
-VISION_LLM_BASE_URL=https://your-provider.example/v1
+# 百炼千问视觉；VISION_LLM_API_KEY 留空时共用 DASHSCOPE_API_KEY。
+# 不回退到 NVIDIA、RAG 或通用聊天上游。
+VISION_LLM_BASE_URL=https://your-dashscope-endpoint.example/compatible-mode/v1
 VISION_LLM_API_KEY=
-VISION_LLM_MODEL=your-vision-model
+VISION_LLM_MODEL=qwen3-vl-plus
 
 # 图像服务二选一。
 IMAGE_PROVIDER=openai_images
@@ -203,12 +206,12 @@ RAG_EMBEDDING_MODEL=your-embedding-model
 # 可选的独立 Embedding Key。留空时复用 LLM_API_KEY。
 NVIDIA_API_KEY=
 
-# 可选的独立语义切块 Endpoint；留空时复用 LLM_BASE_URL。
+# 独立语义切块端点可选；留空复用 LLM_BASE_URL，凭据仍为 LLM_API_KEY。
 RAG_SEMANTIC_CHUNK_BASE_URL=
 RAG_SEMANTIC_CHUNK_MODEL=your-chat-model
 ```
 
-同一知识库应使用同一个稳定的 Embedding 模型。模型变更后需重新导入文档，因为旧向量属于原模型的向量空间。
+使用 [NVIDIA Embedding](https://docs.nvidia.com/nim/nemo-retriever/text-embedding/latest/reference.html) 或其他兼容端点。Luma 会向 `POST /embeddings` 发送 `input_type`（`query` / `passage`）和 `encoding_format: float`，并读取 `data[0].embedding`。例如 [OpenAI Embeddings](https://developers.openai.com/api/reference/resources/embeddings/methods/create) 未定义 `input_type`，需由适配层移除或转换该字段，不应视为直接替换。独立 Embedding Key 填在 `NVIDIA_API_KEY`，留空复用 `LLM_API_KEY`。更换模型后重新导入文档或重建索引，不要混用向量。
 
 ### 语音、搜索、天气与 MCP
 
@@ -238,6 +241,7 @@ MCP 服务不会被硬编码进主提示词。启用后，Luma 会在运行时�
 
 ```dotenv
 VIDEO_GATEWAY_BASE_URL=https://your-video-gateway.example/video-api
+# 由 Luma 视频网关签发，通过 X-API-Key 发送，不是 LUMA_API_KEY。
 VIDEO_GATEWAY_API_KEY=replace-with-video-gateway-key
 VIDEO_RESOLUTION=480p
 VIDEO_ASPECT_RATIO=16:9

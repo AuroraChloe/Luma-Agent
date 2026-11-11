@@ -132,31 +132,33 @@ This keeps ordinary Q&A lightweight while allowing multi-tool work such as **res
 | 🎙️ Audio | `WS /v1/audio/asr`, `POST /v1/audio/tts` |
 | 🎬 Video | `GET /v1/sessions/{id}/video-generation` |
 
-All endpoints except `/healthz` use:
+Protected HTTP endpoints use your deployment's own `LUMA_API_KEY`, not a model provider key:
 
 ```http
 Authorization: Bearer <LUMA_API_KEY>
 X-Luma-Project-ID: my-project
 ```
 
-`X-Luma-Project-ID` is optional and defaults to `default`. It isolates sessions, RAG collections, assets, code workspaces, and video projects inside one deployment.
+`X-Luma-Project-ID` is optional and defaults to `default`. It selects project context; it is not an access credential.
+
+`GET /healthz` and `GET /temp_file/{name}` do not check the service key. Do not expose private media directly. When `LUMA_API_KEY` is configured, ASR WebSocket accepts a Bearer header or an `api_key` query parameter; prefer the header. A blank service key skips that ASR check.
 
 ## 🧩 Configure Only What You Need
 
-Luma's integrations are independent. Copy `backend/.env.example`, then enable a capability by filling its required settings. An unset integration is simply unavailable to the Agent; it does not break regular chat.
+Set credentials in `backend/.env`. For basic chat, generate your own `LUMA_API_KEY` and configure the model provider's `LLM_API_KEY`, endpoint, and model names. Configure the remaining credentials only for features you use.
 
-| Capability | Required settings | How it becomes available |
+| Capability | Providers and alternatives | Settings |
 | --- | --- | --- |
-| 💬 Chat + Agent | `LLM_BASE_URL`, `LLM_API_KEY`, `AGENT_MODEL` | Always available after chat configuration is valid |
-| 🧠 Tool-driven Agent | `LLM_SUPPORTS_TOOLS=true` | Local tools/MCP domains are discovered automatically; set `AGENT_TOOL_SELECTOR_MODEL` only when the selector should use a smaller dedicated model |
-| 👁️ Vision | `VISION_LLM_BASE_URL`, `VISION_LLM_MODEL`, `VISION_LLM_API_KEY` or `DASHSCOPE_API_KEY` | Automatically used when the request requires reading an image |
-| 🎨 Images | `IMAGE_PROVIDER`, `IMAGE_BASE_URL`, `IMAGE_API_KEY`, `IMAGE_MODEL` | Image generation/editing tools become usable after a compatible provider is configured |
-| 📚 RAG | `RAG_EMBEDDING_BASE_URL`, `RAG_EMBEDDING_MODEL`, `NVIDIA_API_KEY` or `LLM_API_KEY` | Upload files through `/v1/rag/files`; pgvector is included in the Compose database image |
-| 🎙️ ASR / TTS | `DASHSCOPE_API_KEY` | ASR uses `/v1/audio/asr`; TTS uses `/v1/audio/tts` |
-| 🔎 Web search | `TAVILY_API_KEY` | The search tool is automatically offered when a request needs current web information |
-| 🌤️ Weather | `WEATHER_API_KEY` | The weather tool is automatically offered for location-based forecasts |
-| 🔌 MCP | `MCP_*_ENABLED`, `MCP_*_URL`, `MCP_*_API_KEY` | Each enabled server is discovered as an MCP tool domain |
-| 🎬 Video | `VIDEO_GATEWAY_BASE_URL`, `VIDEO_GATEWAY_API_KEY` | The video workflow submits only after its concept and storyboard are ready |
+| Service authentication | Generate a random secret for Luma clients; no vendor account is required | `LUMA_API_KEY` |
+| Chat / Agent | **Replaceable:** for example, [DeepSeek](https://api-docs.deepseek.com/guides/tool_calls/), OpenAI, or [Alibaba Cloud Model Studio](https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions). Chat requires Chat Completions, Agent mode also requires tool calling, and the Responses proxy needs upstream Responses support | `LLM_BASE_URL`, `LLM_API_KEY`, `DEFAULT_MODEL`, `AGENT_MODEL` |
+| Vision | **Qwen on Alibaba Cloud Model Studio**, for example `qwen3-vl-plus`. Share the DashScope key with audio or set a separate DashScope key in `VISION_LLM_API_KEY` | `VISION_LLM_BASE_URL`, `VISION_LLM_MODEL`, `DASHSCOPE_API_KEY` or `VISION_LLM_API_KEY` |
+| ASR / TTS | **Alibaba Cloud DashScope**. Both can share one key; another vendor requires an adapter | `DASHSCOPE_API_KEY` |
+| Images | **Replaceable:** [OpenAI Images](https://developers.openai.com/api/docs/guides/image-generation), Alibaba Cloud Qwen Image, or a self-hosted OpenAI Images-compatible gateway. Edits require the adapter's image input format | `IMAGE_PROVIDER`, `IMAGE_BASE_URL`, `IMAGE_API_KEY`, `IMAGE_MODEL` |
+| RAG embeddings | **Compatible endpoints are replaceable:** for example, NVIDIA's hosted service or self-hosted NVIDIA NIM. For other providers such as OpenAI Embeddings, verify request-field compatibility or use an adapter gateway; see below | `RAG_EMBEDDING_BASE_URL`, `RAG_EMBEDDING_MODEL`, `NVIDIA_API_KEY` or `LLM_API_KEY` |
+| Web search | **Tavily**. Another search vendor requires an adapter, not just a different key | `TAVILY_API_KEY` |
+| Weather | **Amap Web Services** | `WEATHER_API_KEY` |
+| MCP | **Issued by each MCP service**. Configure MBTI and MCD separately; other services need compatible integration and authentication, or a new adapter | `MCP_MBTI_API_KEY`, `MCP_MCD_API_KEY`, and their matching `*_URL` and `*_ENABLED=true` |
+| Video rendering | **Luma video gateway**. Use its gateway-issued key, not `LUMA_API_KEY`. A self-hosted replacement must implement the same submission and polling endpoints and `X-API-Key` authentication | `VIDEO_GATEWAY_BASE_URL`, `VIDEO_GATEWAY_API_KEY` |
 
 ### Agent settings
 
@@ -178,10 +180,11 @@ AGENT_TOOL_SELECTOR_MAX_TOOLS=3
 ### Vision and image generation
 
 ```dotenv
-# Dedicated vision provider; DASHSCOPE_API_KEY is reused when VISION_LLM_API_KEY is blank.
-VISION_LLM_BASE_URL=https://your-provider.example/v1
+# Qwen Vision on Model Studio; blank VISION_LLM_API_KEY reuses DASHSCOPE_API_KEY.
+# No fallback to NVIDIA, RAG, or the general chat provider.
+VISION_LLM_BASE_URL=https://your-dashscope-endpoint.example/compatible-mode/v1
 VISION_LLM_API_KEY=
-VISION_LLM_MODEL=your-vision-model
+VISION_LLM_MODEL=qwen3-vl-plus
 
 # Pick one image mode.
 IMAGE_PROVIDER=openai_images
@@ -203,12 +206,12 @@ RAG_EMBEDDING_MODEL=your-embedding-model
 # Optional dedicated key. Blank means LLM_API_KEY is reused.
 NVIDIA_API_KEY=
 
-# Optional dedicated semantic-chunking endpoint; blank means LLM_BASE_URL.
+# Optional semantic-chunking endpoint; blank reuses LLM_BASE_URL. The key is still LLM_API_KEY.
 RAG_SEMANTIC_CHUNK_BASE_URL=
 RAG_SEMANTIC_CHUNK_MODEL=your-chat-model
 ```
 
-Use one stable embedding model for a collection. Changing the model later requires re-ingesting documents because the stored vectors belong to the original embedding space.
+Use [NVIDIA Embedding](https://docs.nvidia.com/nim/nemo-retriever/text-embedding/latest/reference.html) or a compatible endpoint. Luma sends `input_type` (`query` / `passage`) and `encoding_format: float` to `POST /embeddings` and reads `data[0].embedding`. For example, [OpenAI Embeddings](https://developers.openai.com/api/reference/resources/embeddings/methods/create) does not define `input_type`, so an adapter must drop or translate it rather than treating that API as a drop-in replacement. Use `NVIDIA_API_KEY` for a separate embedding credential, or leave it blank to use `LLM_API_KEY`. Re-index documents after changing embedding models.
 
 ### Speech, search, weather, and MCP
 
@@ -238,6 +241,7 @@ MCP servers are not hard-wired into the Agent prompt. When enabled, Luma discove
 
 ```dotenv
 VIDEO_GATEWAY_BASE_URL=https://your-video-gateway.example/video-api
+# Issued by the Luma video gateway and sent as X-API-Key; not LUMA_API_KEY.
 VIDEO_GATEWAY_API_KEY=replace-with-video-gateway-key
 VIDEO_RESOLUTION=480p
 VIDEO_ASPECT_RATIO=16:9

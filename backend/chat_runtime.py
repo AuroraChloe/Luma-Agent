@@ -27,6 +27,7 @@ from rag_runtime import rag_running_usage, run_rag_chat
 from redis_jobs import update_live_job_sync
 from tts_runtime import synthesize_text_to_file
 from video_creation_runtime import run_video_creation_chat
+from vision_context_runtime import VISION_LLM_BASE_URL, VISION_LLM_MODEL, vision_provider_overrides
 from sql import (
     add_chat_message,
     client_usage_available,
@@ -40,13 +41,6 @@ from sql import (
 )
 
 
-VISION_LLM_MODEL = os.getenv("VISION_LLM_MODEL", "moonshotai/kimi-k2.6")
-VISION_LLM_BASE_URL = (os.getenv("VISION_LLM_BASE_URL") or os.getenv("NVIDIA_LLM_BASE_URL") or os.getenv("RAG_EMBEDDING_BASE_URL") or "").rstrip("/")
-VISION_LLM_API_KEY = (
-    os.getenv("VISION_LLM_API_KEY")
-    or os.getenv("DASHSCOPE_API_KEY")
-    or os.getenv("NVIDIA_API_KEY")
-)
 def explicit_image_request(original_user_request=""):
     text = str(original_user_request or "")
     image_keywords = (
@@ -164,21 +158,6 @@ def strip_uploaded_image_path(text, image_path=""):
         text = text.replace(str(image_path), "")
     text = re.sub(r"/opt/key_college/temp_images/[^\s<>()]+?\.(?:png|jpg|jpeg|webp|gif)", "", text, flags=re.I)
     return "\n".join(line.strip() for line in text.splitlines() if line.strip()).strip()
-
-
-def vision_chat_overrides():
-    overrides = {}
-    if VISION_LLM_BASE_URL:
-        overrides["_provider_base_url"] = VISION_LLM_BASE_URL
-    if VISION_LLM_API_KEY:
-        overrides["_provider_api_key"] = VISION_LLM_API_KEY
-    vision_timeout = os.getenv("VISION_LLM_TIMEOUT")
-    if vision_timeout:
-        try:
-            overrides["_provider_timeout"] = float(vision_timeout)
-        except ValueError:
-            pass
-    return VISION_LLM_MODEL, overrides
 
 
 class ChatRuntime:
@@ -568,8 +547,8 @@ class ChatRuntime:
         if vision_image_ref:
             # Keep vision calls one-shot so historical tool-call metadata never reaches the vision upstream.
             plain_messages = attach_vision_image_to_messages(original_user_request, vision_image_ref)
-            plain_model, provider_overrides = vision_chat_overrides()
-            kwargs = {**kwargs, **provider_overrides}
+            plain_model = VISION_LLM_MODEL
+            kwargs = {**kwargs, **vision_provider_overrides()}
             print(
                 f"vision plain_chat model={plain_model} source={vision_source} text={original_user_request[:80]}",
                 flush=True,

@@ -26,7 +26,7 @@ from chat_protocol import add_chat_usage
 from mcp_runtime import load_agent_mcp_tool_groups
 from skill_registry import skills_prompt, skills_prompt_for_tools
 from sql import recent_chat_job_tool_names
-from vision_context_runtime import run_vision_context
+from vision_context_runtime import VISION_LLM_MODEL, run_vision_context
 from visual_assets import (
     resolve_visual_assets,
     tool_image_asset_event,
@@ -799,7 +799,7 @@ async def run_langchain_agent(
         vision_context_ready = bool(vision_context)
         if vision_context_ready:
             print(
-                f"vision context ready model={os.getenv('VISION_LLM_MODEL', 'moonshotai/kimi-k2.6')} "
+                f"vision context ready model={VISION_LLM_MODEL} "
                 f"asset={selected_asset.get('asset_id')} chars={len(vision_context)}",
                 flush=True,
             )

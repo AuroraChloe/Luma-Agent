@@ -7,22 +7,17 @@ import json
 import mimetypes
 import os
 from typing import Any
+from urllib.parse import urlsplit
 
 from llm import llm_chat
 from media_store import uploaded_image_public_url
 
 
-VISION_LLM_MODEL = os.getenv("VISION_LLM_MODEL", "moonshotai/kimi-k2.6")
-VISION_LLM_BASE_URL = (
-    os.getenv("VISION_LLM_BASE_URL")
-    or os.getenv("NVIDIA_LLM_BASE_URL")
-    or os.getenv("RAG_EMBEDDING_BASE_URL")
-    or ""
-).rstrip("/")
+VISION_LLM_MODEL = os.getenv("VISION_LLM_MODEL", "").strip() or "qwen3-vl-plus"
+VISION_LLM_BASE_URL = os.getenv("VISION_LLM_BASE_URL", "").strip().rstrip("/")
 VISION_LLM_API_KEY = (
-    os.getenv("VISION_LLM_API_KEY")
-    or os.getenv("DASHSCOPE_API_KEY")
-    or os.getenv("NVIDIA_API_KEY")
+    os.getenv("VISION_LLM_API_KEY", "").strip()
+    or os.getenv("DASHSCOPE_API_KEY", "").strip()
 )
 try:
     VISION_LLM_TIMEOUT = float(os.getenv("VISION_LLM_TIMEOUT", "75"))
@@ -70,17 +65,19 @@ def _message_text(response: Any) -> str:
     return str(content or "").strip()
 
 
-def _provider_overrides() -> dict:
-    overrides = {}
-    if VISION_LLM_BASE_URL:
-        overrides["_provider_base_url"] = VISION_LLM_BASE_URL
-    if VISION_LLM_API_KEY:
-        overrides["_provider_api_key"] = VISION_LLM_API_KEY
-    overrides["_provider_timeout"] = VISION_LLM_TIMEOUT
-    # Vision calls carry a large image payload. Retrying a hung upstream request
-    # silently turns one timeout into several minutes of blocked workflow time.
-    overrides["_provider_max_retries"] = 0
-    return overrides
+def vision_provider_overrides() -> dict:
+    if not VISION_LLM_BASE_URL or not VISION_LLM_API_KEY:
+        raise RuntimeError("Vision requires VISION_LLM_BASE_URL and VISION_LLM_API_KEY or DASHSCOPE_API_KEY")
+    host = (urlsplit(VISION_LLM_BASE_URL).hostname or "").rstrip(".")
+    if host == "nvidia.com" or host.endswith(".nvidia.com"):
+        raise RuntimeError("NVIDIA is not supported for Vision; configure a Qwen Vision endpoint")
+    return {
+        "_provider_base_url": VISION_LLM_BASE_URL,
+        "_provider_api_key": VISION_LLM_API_KEY,
+        "_provider_timeout": VISION_LLM_TIMEOUT,
+        # Do not retry large multimodal requests on a hung upstream.
+        "_provider_max_retries": 0,
+    }
 
 
 def _usage_dict(response: Any) -> dict:
@@ -138,7 +135,7 @@ def run_vision_context(*, user_message: str, image_ref: str, context: str = "") 
             model=VISION_LLM_MODEL,
             messages=messages,
             temperature=0,
-            **_provider_overrides(),
+            **vision_provider_overrides(),
         )
     except Exception as exc:
         return {
@@ -234,7 +231,7 @@ def run_vision_inspection(*, image_ref: str, subject_spec: dict, purpose: str = 
             model=VISION_LLM_MODEL,
             messages=messages,
             temperature=0,
-            **_provider_overrides(),
+            **vision_provider_overrides(),
         )
     except Exception as exc:
         return {
@@ -289,7 +286,7 @@ def run_vision_inspection(*, image_ref: str, subject_spec: dict, purpose: str = 
                         },
                     ],
                     temperature=0,
-                    **_provider_overrides(),
+                    **vision_provider_overrides(),
                 )
                 usage = _merge_usage(usage, _usage_dict(verifier_response))
                 verification = _json_content(_message_text(verifier_response))
@@ -374,7 +371,7 @@ def run_video_storyboard_review(*, image_ref: str, production_context: dict) -> 
             model=VISION_LLM_MODEL,
             messages=messages,
             temperature=0,
-            **_provider_overrides(),
+            **vision_provider_overrides(),
         )
     except Exception as exc:
         return {"report": {}, "usage": {}, "error": f"{type(exc).__name__}: {exc}"}
@@ -437,7 +434,7 @@ def run_video_storyboard_sheet_review(*, image_ref: str, production_context: dic
             model=VISION_LLM_MODEL,
             messages=messages,
             temperature=0,
-            **_provider_overrides(),
+            **vision_provider_overrides(),
         )
     except Exception as exc:
         response = None
@@ -497,7 +494,7 @@ def run_video_storyboard_sheet_quality_inspection(*, image_ref: str, quality_con
             model=VISION_LLM_MODEL,
             messages=messages,
             temperature=0,
-            **_provider_overrides(),
+            **vision_provider_overrides(),
         )
     except Exception as exc:
         return {"report": {}, "usage": {}, "error": f"{type(exc).__name__}: {exc}"}
