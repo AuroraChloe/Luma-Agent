@@ -51,6 +51,18 @@ flowchart LR
 
 ## 🚀 Quick Start
 
+### Set up with an agent
+
+Install the setup skill from GitHub:
+
+```bash
+npx skills add AuroraChloe/Luma-Agent
+```
+
+Then ask your agent to use [`luma-agent-setup`](skills/luma-agent-setup/SKILL.md) to deploy and verify Luma Agent on your chosen machine. The command installs the skill only; the backend starts when the agent runs the setup with Docker Compose. You will need credentials for a compatible model provider to verify an Agent run.
+
+### Manual setup
+
 ### 1. Prepare configuration
 
 ```bash

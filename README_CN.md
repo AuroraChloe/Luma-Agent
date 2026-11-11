@@ -51,6 +51,18 @@ flowchart LR
 
 ## 🚀 快速开始
 
+### 让 Agent 帮你部署
+
+从 GitHub 安装部署 Skill：
+
+```bash
+npx skills add AuroraChloe/Luma-Agent
+```
+
+然后告诉你的 Agent：「用 [`luma-agent-setup`](skills/luma-agent-setup/SKILL.md) 帮我在目标机器上部署 Luma Agent，并验证能否运行。」这条命令只安装 Skill；后端由 Agent 使用 Docker Compose 启动。验证 Agent 任务需要你自己的兼容模型服务凭据。
+
+### 手动部署
+
 ### 1. 准备配置
 
 ```bash
